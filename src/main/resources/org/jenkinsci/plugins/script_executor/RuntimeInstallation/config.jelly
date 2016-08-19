@@ -1,0 +1,26 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core"
+         xmlns:st="jelly:stapler"
+         xmlns:d="jelly:define"
+         xmlns:l="/lib/layout"
+         xmlns:t="/lib/hudson"
+         xmlns:f="/lib/form">
+    <f:entry title="Name" field="name">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="WIN executor" field="winExecutor">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="NIX executor" field="nixExecutor">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="Syntax check command" field="checkCommand">
+        <f:textbox />
+    </f:entry>
+    <f:entry title="Environment variables" field="envVar">
+        <f:expandableTextbox />
+    </f:entry>
+    <f:entry title="RUNTIME_HOME" field="home">
+        <f:textbox />
+    </f:entry>
+</j:jelly>
