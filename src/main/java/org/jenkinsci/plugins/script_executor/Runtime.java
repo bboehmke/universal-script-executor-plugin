@@ -97,6 +97,11 @@ public class Runtime extends Builder {
                         for (Entry<Object, Object> entry : props.entrySet()) {
                             String value = entry.getValue().toString();
 
+                            // replace ; with : on linux/unix for env variables
+                            if (launcher.isUnix()) {
+                                value = value.replace(";", ":");
+                            }
+
                             envVars.put(
                                     entry.getKey().toString(),
                                     Util.replaceMacro(value, envVars));

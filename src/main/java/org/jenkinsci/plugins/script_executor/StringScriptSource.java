@@ -17,6 +17,7 @@ import java.util.Properties;
 import org.apache.commons.io.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.SystemUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -131,6 +132,11 @@ public class StringScriptSource extends ScriptSource {
 
                     for (Map.Entry<Object, Object> entry : props.entrySet()) {
                         String value = entry.getValue().toString();
+
+                        // replace ; with : on linux/unix for env variables
+                        if (SystemUtils.IS_OS_LINUX) {
+                            value = value.replace(";", ":");
+                        }
 
                         envVars.put(
                                 entry.getKey().toString(),
