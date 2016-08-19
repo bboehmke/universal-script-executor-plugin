@@ -11,7 +11,7 @@
     <f:entry title="WIN executor" field="winExecutor">
         <f:textbox />
     </f:entry>
-    <f:entry title="NIX executor" field="nixExecutor">
+    <f:entry title="LINUX executor" field="nixExecutor">
         <f:textbox />
     </f:entry>
     <f:entry title="Syntax check command" field="checkCommand">

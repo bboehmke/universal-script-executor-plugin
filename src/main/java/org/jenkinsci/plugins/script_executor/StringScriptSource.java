@@ -3,6 +3,7 @@ package org.jenkinsci.plugins.script_executor;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
+import hudson.Util;
 import hudson.model.BuildListener;
 import hudson.model.AbstractBuild;
 import hudson.model.Descriptor;
@@ -105,7 +106,7 @@ public class StringScriptSource extends ScriptSource {
             // create temp file
             File scriptFile;
             try {
-                scriptFile = File.createTempFile("script", "pl");
+                scriptFile = File.createTempFile("script", "use");
             } catch (IOException e) {
                 return FormValidation.error("Failed to create temporary script file:\n" + e);
             }
@@ -133,7 +134,7 @@ public class StringScriptSource extends ScriptSource {
 
                         envVars.put(
                                 entry.getKey().toString(),
-                                value.replace("$RUNTIME_HOME", runtime.getHome()));
+                                Util.replaceMacro(value, envVars));
                     }
                 }
 
@@ -146,7 +147,7 @@ public class StringScriptSource extends ScriptSource {
 
                 if (process.waitFor() != 0) {
                     String err = IOUtils.toString(process.getInputStream());
-                    return FormValidation.error(err.replace(scriptFile.getAbsolutePath(), "script.pl"));
+                    return FormValidation.error(err.replace(scriptFile.getAbsolutePath(), "script.use"));
                 } else {
                     return FormValidation.ok("So far so good");
                 }

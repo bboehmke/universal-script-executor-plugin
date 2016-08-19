@@ -99,7 +99,7 @@ public class Runtime extends Builder {
 
                             envVars.put(
                                     entry.getKey().toString(),
-                                    value.replace("$RUNTIME_HOME", installation.getHome()));
+                                    Util.replaceMacro(value, envVars));
                         }
                     }
                 }
