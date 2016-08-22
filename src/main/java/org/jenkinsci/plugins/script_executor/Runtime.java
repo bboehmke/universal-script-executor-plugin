@@ -87,7 +87,7 @@ public class Runtime extends Builder {
                 RuntimeInstallation installation = getRuntime();
                 if(installation != null) {
                     installation = installation.forNode(Computer.currentComputer().getNode(), listener);
-                    envVars.put("RUNTIME_HOME", installation.getHome());
+                    envVars.put("RUNTIME_HOME", installation.getLocalHome(script.getChannel(), launcher.isUnix()));
 
                     // get runtime environment variables
                     if (StringUtils.isNotBlank(installation.getEnvVar())) {

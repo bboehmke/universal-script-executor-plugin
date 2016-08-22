@@ -15,11 +15,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 
 import jenkins.model.Jenkins;
 import jenkins.security.MasterToSlaveCallable;
 
 import org.apache.commons.exec.CommandLine;
+import org.apache.commons.lang.SystemUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
@@ -119,7 +121,7 @@ public class RuntimeInstallation
                 // check if on unix
                 File exe;
                 if (isOnUnix) {
-                    exe = new File(home, getNixExecutor());
+                    exe = new File(getMountPointHome(home), getNixExecutor());
                 } else {
                     exe = new File(home, getWinExecutor());
                 }
@@ -136,12 +138,93 @@ public class RuntimeInstallation
     }
 
     /**
+     * Gets the home path of this runtime
+     * @param channel Channel of node
+     * @param isOnUnix True if run on unix
+     * @return Path to executable or null
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    public String getLocalHome(VirtualChannel channel, final boolean isOnUnix) throws IOException, InterruptedException {
+        return channel.call(new MasterToSlaveCallable<String, IOException>() {
+            public String call() throws IOException {
+                // replace macros in home path
+                String home = Util.replaceMacro(getHome(), EnvVars.masterEnvVars);
+
+                // check if on unix
+                if (isOnUnix) {
+                    return getMountPointHome(home);
+                } else {
+                    return home;
+                }
+            }
+
+            private static final long serialVersionUID = 1L;
+        });
+    }
+
+    /**
+     * Convert network share home path to a mount point on linux slaves
+     * @param home Network share
+     * @return Local path to mount point
+     */
+    private String getMountPointHome(String home) {
+        // only smb shares
+        if (home.startsWith("//")) {
+
+            try {
+                // get mount list
+                ProcessBuilder builder = new ProcessBuilder("mount");
+                builder.redirectErrorStream(true);
+                Process process = builder.start();
+
+                // wait for execution
+                if (process.waitFor() != 0) {
+                    return home;
+                }
+
+                // go through mount list
+                Scanner scanner = new Scanner(process.getInputStream());
+                while (scanner.hasNextLine()) {
+                    String line = scanner.nextLine();
+
+                    // split mount line
+                    //  split[0] -> network name
+                    //  split[1] -> local mount point
+                    String[] split = line.split("(( on | type ))");
+
+                    // check if home starts with actual mount point
+                    if (split.length >= 2 && home.startsWith(split[0])) {
+                        // replace network path with local mount point
+                        return home.replace(split[0], split[1]);
+                    }
+                }
+                return home;
+
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                return home;
+            } catch (IOException e) {
+                e.printStackTrace();
+                return home;
+            }
+        } else {
+            return home;
+        }
+    }
+
+    /**
      * Get the command line for the syntax check
      * @return Command line
      */
     public List<String> getCheckCommandLine() {
         // replace macros in home path
         String home = Util.replaceMacro(getHome(), EnvVars.masterEnvVars);
+
+        // try to convert home to mount point
+        if (SystemUtils.IS_OS_LINUX) {
+            home = getMountPointHome(home);
+        }
 
         ArrayList<String> cmd = new ArrayList<String>();
 
