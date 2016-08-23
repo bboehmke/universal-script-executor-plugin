@@ -83,30 +83,13 @@ public class Runtime extends Builder {
 
             try {
                 // prepare environment variables
-                Map<String,String> envVars = build.getEnvironment(listener);
+                Map<String, String> envVars = build.getEnvironment(listener);
                 RuntimeInstallation installation = getRuntime();
                 if(installation != null) {
                     installation = installation.forNode(Computer.currentComputer().getNode(), listener);
                     envVars.put("RUNTIME_HOME", installation.getLocalHome(script.getChannel(), launcher.isUnix()));
 
-                    // get runtime environment variables
-                    if (StringUtils.isNotBlank(installation.getEnvVar())) {
-                        Properties props = new Properties();
-                        props.load(new StringReader(installation.getEnvVar()));
-
-                        for (Entry<Object, Object> entry : props.entrySet()) {
-                            String value = entry.getValue().toString();
-
-                            // replace ; with : on linux/unix for env variables
-                            if (launcher.isUnix()) {
-                                value = value.replace(";", ":");
-                            }
-
-                            envVars.put(
-                                    entry.getKey().toString(),
-                                    Util.replaceMacro(value, envVars));
-                        }
-                    }
+                    envVars.putAll(installation.getEnvVarMap(envVars, launcher.isUnix()));
                 }
 
                 // add build variables to environment

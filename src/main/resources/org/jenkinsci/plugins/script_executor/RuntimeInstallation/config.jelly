@@ -20,6 +20,12 @@
     <f:entry title="Environment variables" field="envVar">
         <f:expandableTextbox />
     </f:entry>
+    <f:entry title="WIN Environment variables" field="envVarWin">
+        <f:expandableTextbox />
+    </f:entry>
+    <f:entry title="LINUX Environment variables" field="envVarNix">
+        <f:expandableTextbox />
+    </f:entry>
     <f:entry title="RUNTIME_HOME" field="home">
         <f:textbox />
     </f:entry>

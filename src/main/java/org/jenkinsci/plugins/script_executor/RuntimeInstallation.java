@@ -12,15 +12,14 @@ import hudson.tools.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Scanner;
+import java.io.StringReader;
+import java.util.*;
 
 import jenkins.model.Jenkins;
 import jenkins.security.MasterToSlaveCallable;
 
 import org.apache.commons.exec.CommandLine;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.SystemUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 
@@ -52,6 +51,16 @@ public class RuntimeInstallation
     private String envVar;
 
     /**
+     * List of environment variables for the runtime windows specific
+     */
+    private String envVarWin;
+
+    /**
+     * List of environment variables for the runtime linux specific
+     */
+    private String envVarNix;
+
+    /**
      * Create runtime installation
      * @param name Name of the installation
      * @param home Home directory of the installation
@@ -59,18 +68,23 @@ public class RuntimeInstallation
      * @param nixExecutor Executor for linux
      * @param checkCommand Command to check the syntax
      * @param envVar Environment variables
+     * @param envVarWin Environment variables windows specific
+     * @param envVarNix Environment variables linux specific
      * @param properties Tool installation properties
      */
     @DataBoundConstructor
     public RuntimeInstallation(String name, String home, String winExecutor,
-                               String nixExecutor, String checkCommand, String envVar,
+                               String nixExecutor, String checkCommand,
+                               String envVar, String envVarWin, String envVarNix,
                                List<? extends ToolProperty<?>> properties){
-    	super(name,home,properties);
+    	super(name, home, properties);
 
         this.winExecutor = winExecutor;
         this.nixExecutor = nixExecutor;
         this.checkCommand = checkCommand;
         this.envVar = envVar;
+        this.envVarWin = envVarWin;
+        this.envVarNix = envVarNix;
     }
 
     /**
@@ -102,6 +116,67 @@ public class RuntimeInstallation
      */
     public String getEnvVar() {
         return envVar;
+    }
+    /**
+     * Get the environment variables windows specific
+     * @return Environment variables windows specific
+     */
+    public String getEnvVarWin() {
+        return envVarWin;
+    }
+    /**
+     * Get the environment variables linux specific
+     * @return Environment variables linux specific
+     */
+    public String getEnvVarNix() {
+        return envVarNix;
+    }
+
+    /**
+     * Get the environment variables
+     * @param isUnix True if on linux
+     * @return Environment variables
+     */
+    public Map<String, String> getEnvVarMap(Map<String, String> envVars, boolean isUnix) throws IOException {
+        envVars.putAll(convertEnvList(envVar, envVars, isUnix));
+
+        if (isUnix) {
+            envVars.putAll(convertEnvList(envVarNix, envVars, true));
+        } else {
+            envVars.putAll(convertEnvList(envVarWin, envVars, false));
+        }
+
+        return envVars;
+    }
+
+
+    /**
+     * Convert environment string to map
+     * @param env environment string
+     * @param isUnix True if on linux
+     * @return environment map
+     * @throws IOException
+     */
+    private Map<String, String> convertEnvList(String env, Map<String, String> envVars, boolean isUnix) throws IOException {
+        if (StringUtils.isNotBlank(env)) {
+            Properties props = new Properties();
+            props.load(new StringReader(env));
+
+            for (Map.Entry<Object, Object> entry : props.entrySet()) {
+                String value = entry.getValue().toString();
+
+                // replace ; with : on linux/unix for env variables
+                if (isUnix) {
+                    value = value.replace(";", ":");
+                }
+
+                envVars.put(
+                        entry.getKey().toString(),
+                        Util.replaceMacro(value, envVars));
+            }
+        }
+
+        return envVars;
     }
 
     /**
@@ -249,7 +324,7 @@ public class RuntimeInstallation
     public RuntimeInstallation forEnvironment(EnvVars environment) {
         return new RuntimeInstallation(getName(), environment.expand(getHome()),
                 getWinExecutor(), getNixExecutor(), getCheckCommand(), getEnvVar(),
-                getProperties().toList());
+                getEnvVarWin(), getEnvVarNix(), getProperties().toList());
     }
 
     /**
@@ -261,7 +336,7 @@ public class RuntimeInstallation
     public RuntimeInstallation forNode(Node node, TaskListener log) throws IOException, InterruptedException {
         return new RuntimeInstallation(getName(), translateFor(node, log),
                 getWinExecutor(), getNixExecutor(), getCheckCommand(), getEnvVar(),
-                getProperties().toList());
+                getEnvVarWin(), getEnvVarNix(), getProperties().toList());
     }
 
     /**

@@ -126,23 +126,7 @@ public class StringScriptSource extends ScriptSource {
                 Map<String,String> envVars = EnvVars.masterEnvVars;
                 envVars.put("RUNTIME_HOME", runtime.getHome());
 
-                if (StringUtils.isNotBlank(runtime.getEnvVar())) {
-                    Properties props = new Properties();
-                    props.load(new StringReader(runtime.getEnvVar()));
-
-                    for (Map.Entry<Object, Object> entry : props.entrySet()) {
-                        String value = entry.getValue().toString();
-
-                        // replace ; with : on linux/unix for env variables
-                        if (SystemUtils.IS_OS_LINUX) {
-                            value = value.replace(";", ":");
-                        }
-
-                        envVars.put(
-                                entry.getKey().toString(),
-                                Util.replaceMacro(value, envVars));
-                    }
-                }
+                envVars.putAll(runtime.getEnvVarMap(envVars, SystemUtils.IS_OS_LINUX));
 
                 // check the syntax of the script
                 ProcessBuilder builder = new ProcessBuilder(cmd);
