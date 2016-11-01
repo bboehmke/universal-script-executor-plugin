@@ -93,6 +93,15 @@ public class StringScriptSource extends ScriptSource {
                 return FormValidation.error("Failed to get runtime");
             }
 
+            // test if syntax check command refers to other instance of runtime
+            // this is needed to use check command if executor is delivered in an automated tool install
+            while (Runtime.DescriptorImpl.getRuntime(runtime.getCheckCommand().trim()) != null) {
+                runtime = Runtime.DescriptorImpl.getRuntime(runtime.getCheckCommand().trim());
+                if (runtime.getName().equals(runtimeName)) {
+                    break;
+                }
+            }
+
             // check if check command dis given
             if (runtime.getCheckCommand().isEmpty()) {
                 return FormValidation.error("No syntax check available!");
@@ -111,7 +120,6 @@ public class StringScriptSource extends ScriptSource {
             } catch (IOException e) {
                 return FormValidation.error("Failed to create temporary script file:\n" + e);
             }
-
 
             try {
                 // write temp file
