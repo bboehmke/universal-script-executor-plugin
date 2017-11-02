@@ -30,7 +30,6 @@ public class RuntimeInstallation
         extends ToolInstallation
         implements EnvironmentSpecific<RuntimeInstallation>,
                    NodeSpecific<RuntimeInstallation> {
-    private static final long serialVersionUID = 1L;
 
     /**
      * Path to the executor for windows (based on home)
@@ -266,7 +265,7 @@ public class RuntimeInstallation
                     // split mount line
                     //  split[0] -> network name
                     //  split[1] -> local mount point
-                    String[] split = line.split("(( on | type ))");
+                    String[] split = line.split("( on | type )");
 
                     // check if home starts with actual mount point
                     if (split.length >= 2 && home.startsWith(split[0])) {
@@ -276,10 +275,7 @@ public class RuntimeInstallation
                 }
                 return home;
 
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-                return home;
-            } catch (IOException e) {
+            } catch (InterruptedException | IOException e) {
                 e.printStackTrace();
                 return home;
             }
@@ -346,6 +342,7 @@ public class RuntimeInstallation
     public static class DescriptorImpl extends ToolDescriptor<RuntimeInstallation> {
 
         public DescriptorImpl() {
+            load();
         }
 
         @Override
@@ -353,14 +350,15 @@ public class RuntimeInstallation
             return "Universal Script Executor";
         }
 
-        @Override
+        /*@Override
         public RuntimeInstallation[] getInstallations() {
             return Jenkins.getInstance().getDescriptorByType(Runtime.DescriptorImpl.class).getInstallations();
-        }
+        }*/
 
         @Override
         public void setInstallations(RuntimeInstallation... installations) {
-            Jenkins.getInstance().getDescriptorByType(Runtime.DescriptorImpl.class).setInstallations(installations);
+            super.setInstallations(installations);
+            save();
         }
 
     }

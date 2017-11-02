@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>2.21</version>
+        <version>2.16</version>
     </parent>
 
     <artifactId>universal-script-executor</artifactId>
@@ -16,6 +16,11 @@
     <name>Universal Script Executor</name>
     <description>Execution of script with self defined runtime.</description>
     <packaging>hpi</packaging>
+
+    <properties>
+        <jenkins.version>2.7.3</jenkins.version>
+        <workflow.version>2.2</workflow.version>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -31,13 +36,21 @@
         <dependency>
             <groupId>org.jenkins-ci</groupId>
             <artifactId>symbol-annotation</artifactId>
-            <version>1.5</version>
+            <version>1.10</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
             <artifactId>workflow-step-api</artifactId>
-            <version>1.10</version>
+            <version>${workflow.version}</version>
+            <optional>true</optional>
         </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins.workflow</groupId>
+            <artifactId>workflow-aggregator</artifactId>
+            <version>${workflow.version}</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <developers>
