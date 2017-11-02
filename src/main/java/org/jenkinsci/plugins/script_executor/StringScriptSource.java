@@ -4,9 +4,7 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Util;
-import hudson.model.BuildListener;
-import hudson.model.AbstractBuild;
-import hudson.model.Descriptor;
+import hudson.model.*;
 import hudson.util.FormValidation;
 
 import java.io.*;
@@ -18,6 +16,7 @@ import org.apache.commons.io.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.SystemUtils;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -36,14 +35,14 @@ public class StringScriptSource extends ScriptSource {
     }
 
     @Override
-    public InputStream getScriptStream(FilePath projectWorkspace, AbstractBuild<?, ?> build, BuildListener listener) {
+    public InputStream getScriptStream(FilePath projectWorkspace, Run<?, ?> build, TaskListener listener) {
         return new ByteArrayInputStream(command.getBytes(Charsets.UTF_8));
     }
 
     @Override
     public FilePath getScriptFile(FilePath projectWorkspace,
-                                  AbstractBuild<?, ?> build,
-                                  BuildListener listener)
+                                  Run<?, ?> build,
+                                  TaskListener listener)
             throws IOException, InterruptedException {
 
         return projectWorkspace.createTextTempFile("jenkins", ".use", command, true);
@@ -69,6 +68,7 @@ public class StringScriptSource extends ScriptSource {
         return command != null ? command.hashCode() : 0;
     }
 
+    @Symbol("Script")
     @Extension
     public static class DescriptorImpl extends Descriptor<ScriptSource> {
 

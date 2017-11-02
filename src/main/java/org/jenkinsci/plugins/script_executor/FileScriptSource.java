@@ -3,13 +3,12 @@ package org.jenkinsci.plugins.script_executor;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
-import hudson.model.BuildListener;
-import hudson.model.AbstractBuild;
-import hudson.model.Descriptor;
+import hudson.model.*;
 
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 /**
@@ -27,7 +26,7 @@ public class FileScriptSource extends ScriptSource {
     }
 
     @Override
-    public FilePath getScriptFile(FilePath projectWorkspace, AbstractBuild<?, ?> build, BuildListener listener) throws IOException, InterruptedException{
+    public FilePath getScriptFile(FilePath projectWorkspace, Run<?, ?> build, TaskListener listener) throws IOException, InterruptedException{
     	EnvVars env = build.getEnvironment(listener);
     	String expandedScriptdFile = env.expand(this.scriptFile);
         return new FilePath(projectWorkspace, expandedScriptdFile);
@@ -38,7 +37,7 @@ public class FileScriptSource extends ScriptSource {
     }
 
     @Override
-    public InputStream getScriptStream(FilePath projectWorkspace, AbstractBuild<?, ?> build, BuildListener listener) throws IOException, InterruptedException {
+    public InputStream getScriptStream(FilePath projectWorkspace, Run<?, ?> build, TaskListener listener) throws IOException, InterruptedException {
         return getScriptFile(projectWorkspace,build,listener).read();
     }
 
@@ -57,6 +56,7 @@ public class FileScriptSource extends ScriptSource {
         return scriptFile != null ? scriptFile.hashCode() : 0;
     }
 
+    @Symbol("ScriptFile")
     @Extension
     public static class DescriptorImpl extends Descriptor<ScriptSource> {
 
