@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.*;
 
+import hudson.util.ListBoxModel;
 import jenkins.security.MasterToSlaveCallable;
 
 import org.apache.commons.exec.CommandLine;
@@ -362,5 +363,24 @@ public class RuntimeInstallation
 
     }
 
+    /**
+     * Get list of possible installations
+     * @return object for gui
+     */
+    public static ListBoxModel getAllInstallations() {
+        ListBoxModel items = new ListBoxModel();
+
+        for (ToolDescriptor<?> desc : ToolInstallation.all()) {
+            for (ToolInstallation inst : desc.getInstallations()) {
+                // skip other installations
+                if (!(inst instanceof RuntimeInstallation)) {
+                    continue;
+                }
+
+                items.add(inst.getName());
+            }
+        }
+        return items;
+    }
 
 }
