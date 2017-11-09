@@ -1,6 +1,8 @@
 package org.jenkinsci.plugins.script_executor;
 
 import hudson.*;
+import hudson.init.InitMilestone;
+import hudson.init.Initializer;
 import hudson.model.*;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
@@ -9,9 +11,7 @@ import hudson.util.VariableResolver;
 
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.*;
-import java.util.Map.Entry;
 
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
@@ -29,7 +29,7 @@ import javax.annotation.Nonnull;
 /**
  * A runtime build step
  */
-public class Runtime extends Builder implements SimpleBuildStep {
+public class UniversalScript extends Builder implements SimpleBuildStep {
 
     /**
      * Script source for the runtime
@@ -49,7 +49,7 @@ public class Runtime extends Builder implements SimpleBuildStep {
     private String scriptParameters = "";
 
     @DataBoundConstructor
-    public Runtime(ScriptSource scriptSource, String runtimeName) {
+    public UniversalScript(ScriptSource scriptSource, String runtimeName) {
         this.scriptSource = scriptSource;
         this.runtimeName = runtimeName;
     }
@@ -149,7 +149,6 @@ public class Runtime extends Builder implements SimpleBuildStep {
         return BuildStepMonitor.NONE;
     }
 
-    @Symbol("use")
     @Extension
     public static class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
@@ -160,7 +159,7 @@ public class Runtime extends Builder implements SimpleBuildStep {
         private volatile List<RuntimeInstallation> installations = new ArrayList<RuntimeInstallation>();
 
         public DescriptorImpl() {
-            super(Runtime.class);
+            super(UniversalScript.class);
             load();
         }
 
@@ -199,7 +198,7 @@ public class Runtime extends Builder implements SimpleBuildStep {
          * @return Runtime installation instance or null
          */
         public static RuntimeInstallation getRuntime(String runtimeName) {
-            for (RuntimeInstallation i : ((DescriptorImpl) Jenkins.getInstance().getDescriptor(Runtime.class)).getInstallations()) {
+            for (RuntimeInstallation i : ((DescriptorImpl) Jenkins.getInstance().getDescriptor(UniversalScript.class)).getInstallations()) {
                 if(runtimeName != null && i.getName().equals(runtimeName)) {
                     return i;
                 }
@@ -222,6 +221,11 @@ public class Runtime extends Builder implements SimpleBuildStep {
         public boolean configure(StaplerRequest req, JSONObject json) throws hudson.model.Descriptor.FormException {
             save();
             return true;
+        }
+
+        @Initializer(before = InitMilestone.PLUGINS_STARTED)
+        public static void addAliases() {
+            Items.XSTREAM2.addCompatibilityAlias("org.jenkinsci.plugins.script_executor.Runtime", UniversalScript.class);
         }
     }
 
@@ -356,6 +360,5 @@ public class Runtime extends Builder implements SimpleBuildStep {
     public String getScriptParameters() {
         return scriptParameters;
     }
-
 
 }

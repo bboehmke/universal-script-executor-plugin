@@ -56,7 +56,6 @@ public class FileScriptSource extends ScriptSource {
         return scriptFile != null ? scriptFile.hashCode() : 0;
     }
 
-    @Symbol("ScriptFile")
     @Extension
     public static class DescriptorImpl extends Descriptor<ScriptSource> {
 

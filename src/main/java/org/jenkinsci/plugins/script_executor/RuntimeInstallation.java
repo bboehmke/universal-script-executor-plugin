@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.*;
 
-import jenkins.model.Jenkins;
 import jenkins.security.MasterToSlaveCallable;
 
 import org.apache.commons.exec.CommandLine;
