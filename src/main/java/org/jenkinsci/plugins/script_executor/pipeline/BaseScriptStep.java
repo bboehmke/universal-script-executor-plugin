@@ -48,11 +48,11 @@ public abstract class BaseScriptStep extends AbstractStepImpl {
     }
 
     @Nonnull
-    ScriptSource getScriptSource() {
+    public ScriptSource getScriptSource() {
         return scriptSource;
     }
 
-    String getRuntimeParameters() {
+    public String getRuntimeParameters() {
         return runtimeParameters;
     }
 
@@ -61,7 +61,7 @@ public abstract class BaseScriptStep extends AbstractStepImpl {
         this.runtimeParameters = Util.fixNull(runtimeParameters);
     }
 
-    String getScriptParameters() {
+    public String getScriptParameters() {
         return scriptParameters;
     }
 
