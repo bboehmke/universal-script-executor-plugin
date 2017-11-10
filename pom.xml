@@ -11,7 +11,7 @@
     </parent>
 
     <artifactId>universal-script-executor</artifactId>
-    <version>0.3.0-SNAPSHOT</version>
+    <version>0.3.0</version>
 
     <name>Universal Script Executor</name>
     <description>Execution of script with self defined runtime.</description>
