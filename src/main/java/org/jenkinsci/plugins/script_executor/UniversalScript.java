@@ -4,9 +4,13 @@ import hudson.*;
 import hudson.init.InitMilestone;
 import hudson.init.Initializer;
 import hudson.model.*;
+import hudson.slaves.NodeSpecific;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Builder;
+import hudson.tools.ToolDescriptor;
+import hudson.tools.ToolInstallation;
+import hudson.util.ListBoxModel;
 import hudson.util.VariableResolver;
 
 
@@ -19,7 +23,7 @@ import net.sf.json.JSONObject;
 
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.lang.StringUtils;
-import org.jenkinsci.Symbol;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.StaplerRequest;
@@ -48,10 +52,19 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
      */
     private String scriptParameters = "";
 
+    /**
+     * Custom step context
+     */
+    private transient StepContext customContext = null;
+
     @DataBoundConstructor
     public UniversalScript(ScriptSource scriptSource, String runtimeName) {
         this.scriptSource = scriptSource;
         this.runtimeName = runtimeName;
+    }
+
+    public void setCustomContext(StepContext context) {
+        this.customContext = context;
     }
 
     @DataBoundSetter
@@ -223,6 +236,11 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
             return true;
         }
 
+
+        public ListBoxModel doFillRuntimeNameItems() {
+            return RuntimeInstallation.getAllInstallations();
+        }
+
         @Initializer(before = InitMilestone.PLUGINS_STARTED)
         public static void addAliases() {
             Items.XSTREAM2.addCompatibilityAlias("org.jenkinsci.plugins.script_executor.Runtime", UniversalScript.class);
@@ -233,8 +251,28 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
      * Get the runtime installation of this instance
      * @return RuntimeInstallation
      */
-    protected RuntimeInstallation getRuntime() {
-        return DescriptorImpl.getRuntime(runtimeName);
+    protected RuntimeInstallation getRuntime() throws IOException, InterruptedException {
+        for (ToolDescriptor<?> desc : ToolInstallation.all()) {
+            for (ToolInstallation inst : desc.getInstallations()) {
+                // skip other installations
+                if (!(inst instanceof RuntimeInstallation)) {
+                    continue;
+                }
+
+                if (inst.getName().equals(runtimeName)) {
+
+                    // handle special context (pipeline step)
+                    if (customContext != null) {
+                        inst = (ToolInstallation) ((NodeSpecific<?>) inst).forNode(customContext.get(Node.class), customContext.get(TaskListener.class));
+                        inst = (ToolInstallation) ((EnvironmentSpecific<?>) inst).forEnvironment(customContext.get(EnvVars.class));
+                    }
+
+                    return (RuntimeInstallation)inst;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -93,6 +93,9 @@ public abstract class BaseScriptStep extends AbstractStepImpl {
             // get universal script instance
             UniversalScript script = new UniversalScript(step.getScriptSource(), step.getRuntimeName());
 
+            // set context
+            script.setCustomContext(getContext());
+
             // set parameters
             script.setRuntimeParameters(step.getRuntimeParameters());
             script.setScriptParameters(step.getScriptParameters());
