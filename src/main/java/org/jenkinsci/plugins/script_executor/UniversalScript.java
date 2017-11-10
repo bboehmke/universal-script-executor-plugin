@@ -1,28 +1,39 @@
 package org.jenkinsci.plugins.script_executor;
 
 import hudson.*;
+import hudson.init.InitMilestone;
+import hudson.init.Initializer;
 import hudson.model.*;
+import hudson.slaves.NodeSpecific;
 import hudson.tasks.BuildStepDescriptor;
+import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Builder;
+import hudson.tools.ToolDescriptor;
+import hudson.tools.ToolInstallation;
+import hudson.util.ListBoxModel;
 import hudson.util.VariableResolver;
 
+
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.*;
-import java.util.Map.Entry;
 
 import jenkins.model.Jenkins;
+import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
 
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.lang.StringUtils;
+import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.StaplerRequest;
+
+import javax.annotation.Nonnull;
 
 /**
  * A runtime build step
  */
-public class Runtime extends Builder {
+public class UniversalScript extends Builder implements SimpleBuildStep {
 
     /**
      * Script source for the runtime
@@ -35,41 +46,57 @@ public class Runtime extends Builder {
     /**
      * List of runtime Parameters
      */
-    private String runtimeParameters;
+    private String runtimeParameters = "";
     /**
      * List of script parameters
      */
-    private String scriptParameters;
+    private String scriptParameters = "";
+
+    /**
+     * Custom step context
+     */
+    private transient StepContext customContext = null;
 
     @DataBoundConstructor
-    public Runtime(ScriptSource scriptSource, String runtimeName,
-                  String runtimeParameters, String scriptParameters) {
+    public UniversalScript(ScriptSource scriptSource, String runtimeName) {
         this.scriptSource = scriptSource;
         this.runtimeName = runtimeName;
-        this.runtimeParameters = runtimeParameters;
-        this.scriptParameters = scriptParameters;
+    }
+
+    public void setCustomContext(StepContext context) {
+        this.customContext = context;
+    }
+
+    @DataBoundSetter
+    public void setRuntimeParameters(String runtimeParameters) {
+        this.runtimeParameters = Util.fixNull(runtimeParameters);
+    }
+
+    @DataBoundSetter
+    public void setScriptParameters(String scriptParameters) {
+        this.scriptParameters = Util.fixNull(scriptParameters);
     }
 
     @Override
-    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher,
-                           BuildListener listener)
-            throws InterruptedException, IOException {
+    public void perform(@Nonnull Run<?, ?> build, @Nonnull FilePath workspace,
+                        @Nonnull Launcher launcher,
+                        @Nonnull TaskListener listener) throws InterruptedException, IOException {
 
         // check if script is missing
         if (scriptSource == null) {
             listener.fatalError("There is no script configured for this builder");
-            return false;
+            return;
         }
 
         // try to get script
-        FilePath ws = build.getWorkspace();
         FilePath script;
         try {
-            script = scriptSource.getScriptFile(ws, build, listener);
+            script = scriptSource.getScriptFile(workspace, build, listener);
         } catch (IOException e) {
             Util.displayIOException(e, listener);
             e.printStackTrace(listener.fatalError("Unable to produce a script file"));
-            return false;
+            build.setResult(Result.FAILURE);
+            return;
         }
 
         try {
@@ -78,7 +105,8 @@ public class Runtime extends Builder {
 
             // check if command creation has failed
             if (cmd == null) {
-                return false;
+                build.setResult(Result.FAILURE);
+                return;
             }
 
             try {
@@ -86,32 +114,36 @@ public class Runtime extends Builder {
                 Map<String, String> envVars = build.getEnvironment(listener);
                 RuntimeInstallation installation = getRuntime();
                 if(installation != null) {
-                    installation = installation.forNode(Computer.currentComputer().getNode(), listener);
+                    Computer computer = Computer.currentComputer();
+                    if (computer != null) {
+                        installation = installation.forNode(computer.getNode(), listener);
+                    }
                     envVars.put("RUNTIME_HOME", installation.getLocalHome(script.getChannel(), launcher.isUnix()));
 
                     envVars.putAll(installation.getEnvVarMap(envVars, launcher.isUnix()));
                 }
 
                 // add build variables to environment
-                for(Map.Entry<String,String> e : build.getBuildVariables().entrySet()){
-                    envVars.put(e.getKey(), e.getValue());
-                }
+                //for(Map.Entry<String,String> e : build.getBuildVariables().entrySet()){
+                //    envVars.put(e.getKey(), e.getValue());
+                //}
 
                 // prepare the runtime for script execution
                 Launcher.ProcStarter procStarter = launcher.launch();
                 procStarter.cmds(cmd.toArray(new String[] {}));
                 procStarter.envs(envVars);
                 procStarter.stdout(listener);
-                procStarter.pwd(ws);
+                procStarter.pwd(workspace);
 
                 // execute the script
-                return procStarter.join() == 0;
+                if (procStarter.join() != 0) {
+                    build.setResult(Result.FAILURE);
+                }
 
             } catch (IOException e) {
                 Util.displayIOException(e,listener);
                 e.printStackTrace( listener.fatalError("command execution failed") );
-
-                return false;
+                build.setResult(Result.FAILURE);
             }
 
         } finally {
@@ -126,9 +158,12 @@ public class Runtime extends Builder {
             }
         }
     }
+    public BuildStepMonitor getRequiredMonitorService() {
+        return BuildStepMonitor.NONE;
+    }
 
     @Extension
-    public static final class DescriptorImpl extends BuildStepDescriptor<Builder> {
+    public static class DescriptorImpl extends BuildStepDescriptor<Builder> {
 
         /**
          * List of available runtime installations
@@ -137,7 +172,7 @@ public class Runtime extends Builder {
         private volatile List<RuntimeInstallation> installations = new ArrayList<RuntimeInstallation>();
 
         public DescriptorImpl() {
-            super(Runtime.class);
+            super(UniversalScript.class);
             load();
         }
 
@@ -176,7 +211,7 @@ public class Runtime extends Builder {
          * @return Runtime installation instance or null
          */
         public static RuntimeInstallation getRuntime(String runtimeName) {
-            for (RuntimeInstallation i : ((DescriptorImpl) Jenkins.getInstance().getDescriptor(Runtime.class)).getInstallations()) {
+            for (RuntimeInstallation i : ((DescriptorImpl) Jenkins.getInstance().getDescriptor(UniversalScript.class)).getInstallations()) {
                 if(runtimeName != null && i.getName().equals(runtimeName)) {
                     return i;
                 }
@@ -200,14 +235,44 @@ public class Runtime extends Builder {
             save();
             return true;
         }
+
+
+        public ListBoxModel doFillRuntimeNameItems() {
+            return RuntimeInstallation.getAllInstallations();
+        }
+
+        @Initializer(before = InitMilestone.PLUGINS_STARTED)
+        public static void addAliases() {
+            Items.XSTREAM2.addCompatibilityAlias("org.jenkinsci.plugins.script_executor.Runtime", UniversalScript.class);
+        }
     }
 
     /**
      * Get the runtime installation of this instance
      * @return RuntimeInstallation
      */
-    protected RuntimeInstallation getRuntime() {
-        return DescriptorImpl.getRuntime(runtimeName);
+    protected RuntimeInstallation getRuntime() throws IOException, InterruptedException {
+        for (ToolDescriptor<?> desc : ToolInstallation.all()) {
+            for (ToolInstallation inst : desc.getInstallations()) {
+                // skip other installations
+                if (!(inst instanceof RuntimeInstallation)) {
+                    continue;
+                }
+
+                if (inst.getName().equals(runtimeName)) {
+
+                    // handle special context (pipeline step)
+                    if (customContext != null) {
+                        inst = (ToolInstallation) ((NodeSpecific<?>) inst).forNode(customContext.get(Node.class), customContext.get(TaskListener.class));
+                        inst = (ToolInstallation) ((EnvironmentSpecific<?>) inst).forEnvironment(customContext.get(EnvVars.class));
+                    }
+
+                    return (RuntimeInstallation)inst;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -220,8 +285,8 @@ public class Runtime extends Builder {
      * @throws IOException
      * @throws InterruptedException
      */
-    private List<String> buildCommandLine(AbstractBuild<?,?> build,
-                                          BuildListener listener,
+    private List<String> buildCommandLine(Run<?,?> build,
+                                          TaskListener listener,
                                           FilePath script, boolean isOnUnix)
             throws IOException, InterruptedException  {
 
@@ -229,7 +294,6 @@ public class Runtime extends Builder {
 
         // prepare variable resolver - more efficient than calling env.expand(s)
         EnvVars env = build.getEnvironment(listener);
-        env.overrideAll(build.getBuildVariables());
         VariableResolver<String> vr = new VariableResolver.ByMap<String>(env);
 
         // prepare runtime cmd -> null = invalid
@@ -238,7 +302,10 @@ public class Runtime extends Builder {
         // get the runtime installation
         RuntimeInstallation installation = getRuntime();
         if(installation != null) {
-            installation = installation.forNode(Computer.currentComputer().getNode(), listener);
+            Computer computer = Computer.currentComputer();
+            if (computer != null) {
+                installation = installation.forNode(computer.getNode(), listener);
+            }
             installation = installation.forEnvironment(env);
 
             cmd = installation.getExecutable(script.getChannel(), isOnUnix);
@@ -263,13 +330,15 @@ public class Runtime extends Builder {
         list.add(script.getRemote());
 
         // add script runtimeParameters
-        if(StringUtils.isNotBlank(scriptParameters)) {
+        if(StringUtils.isNotBlank(scriptParameters) && build instanceof AbstractBuild) {
             String[] params = parseParams(scriptParameters);
+
+            AbstractBuild abstractBuild = AbstractBuild.class.cast(build);
             ParametersAction parameters = build.getAction(ParametersAction.class);
             for(String param : params) {
             	// first replace parameter from parametrized build
             	if (parameters != null) {
-                    param = parameters.substitute(build, param);
+                    param = parameters.substitute(abstractBuild, param);
                 }
             	// then replace evn vars
             	param = Util.replaceMacro(param, vr);
@@ -329,6 +398,5 @@ public class Runtime extends Builder {
     public String getScriptParameters() {
         return scriptParameters;
     }
-
 
 }

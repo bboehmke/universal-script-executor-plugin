@@ -1,11 +1,9 @@
 package org.jenkinsci.plugins.script_executor;
 
 import hudson.DescriptorExtensionList;
+import hudson.Extension;
 import hudson.FilePath;
-import hudson.model.AbstractBuild;
-import hudson.model.BuildListener;
-import hudson.model.Describable;
-import hudson.model.Descriptor;
+import hudson.model.*;
 import jenkins.model.Jenkins;
 
 import java.io.IOException;
@@ -28,12 +26,12 @@ public abstract class ScriptSource implements Describable<ScriptSource> {
      * @throws IOException
      * @throws InterruptedException
      */
-    public abstract FilePath getScriptFile(FilePath projectWorkspace, AbstractBuild<?, ?> build, BuildListener listener) throws IOException, InterruptedException;
+    public abstract FilePath getScriptFile(FilePath projectWorkspace, Run<?, ?> build, TaskListener listener) throws IOException, InterruptedException;
 
     /**
      * @return Stream containing the script, able to load script when script path contains parameters
      */
-    public abstract InputStream getScriptStream(FilePath projectWorkspace, AbstractBuild<?, ?> build, BuildListener listener) throws IOException, InterruptedException;
+    public abstract InputStream getScriptStream(FilePath projectWorkspace, Run<?, ?> build, TaskListener listener) throws IOException, InterruptedException;
 
     /**
      * In the end, every script is a file...

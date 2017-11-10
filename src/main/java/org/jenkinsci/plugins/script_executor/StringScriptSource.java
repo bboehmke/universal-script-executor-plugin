@@ -3,21 +3,17 @@ package org.jenkinsci.plugins.script_executor;
 import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
-import hudson.Util;
-import hudson.model.BuildListener;
-import hudson.model.AbstractBuild;
-import hudson.model.Descriptor;
+import hudson.model.*;
 import hudson.util.FormValidation;
 
 import java.io.*;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 import org.apache.commons.io.Charsets;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.SystemUtils;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -36,14 +32,14 @@ public class StringScriptSource extends ScriptSource {
     }
 
     @Override
-    public InputStream getScriptStream(FilePath projectWorkspace, AbstractBuild<?, ?> build, BuildListener listener) {
+    public InputStream getScriptStream(FilePath projectWorkspace, Run<?, ?> build, TaskListener listener) {
         return new ByteArrayInputStream(command.getBytes(Charsets.UTF_8));
     }
 
     @Override
     public FilePath getScriptFile(FilePath projectWorkspace,
-                                  AbstractBuild<?, ?> build,
-                                  BuildListener listener)
+                                  Run<?, ?> build,
+                                  TaskListener listener)
             throws IOException, InterruptedException {
 
         return projectWorkspace.createTextTempFile("jenkins", ".use", command, true);
@@ -86,7 +82,7 @@ public class StringScriptSource extends ScriptSource {
 
             // try to get the runtime
             RuntimeInstallation runtime =
-                    Runtime.DescriptorImpl.getRuntime(runtimeName);
+                    UniversalScript.DescriptorImpl.getRuntime(runtimeName);
 
             // runtime invalid
             if (runtime == null) {
@@ -95,8 +91,8 @@ public class StringScriptSource extends ScriptSource {
 
             // test if syntax check command refers to other instance of runtime
             // this is needed to use check command if executor is delivered in an automated tool install
-            while (Runtime.DescriptorImpl.getRuntime(runtime.getCheckCommand().trim()) != null) {
-                runtime = Runtime.DescriptorImpl.getRuntime(runtime.getCheckCommand().trim());
+            while (UniversalScript.DescriptorImpl.getRuntime(runtime.getCheckCommand().trim()) != null) {
+                runtime = UniversalScript.DescriptorImpl.getRuntime(runtime.getCheckCommand().trim());
                 if (runtime.getName().equals(runtimeName)) {
                     break;
                 }
