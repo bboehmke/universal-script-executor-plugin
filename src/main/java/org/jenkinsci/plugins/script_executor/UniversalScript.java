@@ -14,6 +14,7 @@ import hudson.util.ListBoxModel;
 import hudson.util.VariableResolver;
 
 
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
@@ -127,6 +128,9 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
                 //for(Map.Entry<String,String> e : build.getBuildVariables().entrySet()){
                 //    envVars.put(e.getKey(), e.getValue());
                 //}
+
+                // ensure workspace directory exist
+                workspace.mkdirs();
 
                 // prepare the runtime for script execution
                 Launcher.ProcStarter procStarter = launcher.launch();
@@ -290,11 +294,10 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
                                           FilePath script, boolean isOnUnix)
             throws IOException, InterruptedException  {
 
-        ArrayList<String> list = new ArrayList<String>();
+        ArrayList<String> list = new ArrayList<>();
 
         // prepare variable resolver - more efficient than calling env.expand(s)
         EnvVars env = build.getEnvironment(listener);
-        VariableResolver<String> vr = new VariableResolver.ByMap<String>(env);
 
         // prepare runtime cmd -> null = invalid
         String cmd = null;
@@ -317,6 +320,20 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
         }
         list.add(cmd);
 
+        // build parameters map
+        Map<String, String> parameterVariables = new HashMap<>(env);
+
+        // check for parametrized build
+        ParametersAction parameters = build.getAction(ParametersAction.class);
+        if (parameters != null) {
+            for (ParameterValue p : parameters.getAllParameters()) {
+                if (p.getValue() instanceof String) {
+                    parameterVariables.put(p.getName(), (String) p.getValue());
+                }
+            }
+        }
+        // create variable resolver
+        VariableResolver<String> vr = new VariableResolver.ByMap<>(parameterVariables);
 
         // add runtimeParameters
         if(StringUtils.isNotBlank(runtimeParameters)) {
@@ -330,17 +347,9 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
         list.add(script.getRemote());
 
         // add script runtimeParameters
-        if(StringUtils.isNotBlank(scriptParameters) && build instanceof AbstractBuild) {
+        if(StringUtils.isNotBlank(scriptParameters)) {
             String[] params = parseParams(scriptParameters);
-
-            AbstractBuild abstractBuild = AbstractBuild.class.cast(build);
-            ParametersAction parameters = build.getAction(ParametersAction.class);
             for(String param : params) {
-            	// first replace parameter from parametrized build
-            	if (parameters != null) {
-                    param = parameters.substitute(abstractBuild, param);
-                }
-            	// then replace evn vars
             	param = Util.replaceMacro(param, vr);
                 list.add(param);
             }
