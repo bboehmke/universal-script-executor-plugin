@@ -113,6 +113,15 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
             try {
                 // prepare environment variables
                 Map<String, String> envVars = build.getEnvironment(listener);
+
+                // get pipeline env vars
+                if (customContext != null) {
+                    EnvVars vars = customContext.get(EnvVars.class);
+                    if (vars != null) {
+                        envVars = vars;
+                    }
+                }
+
                 RuntimeInstallation installation = getRuntime();
                 if(installation != null) {
                     Computer computer = Computer.currentComputer();
