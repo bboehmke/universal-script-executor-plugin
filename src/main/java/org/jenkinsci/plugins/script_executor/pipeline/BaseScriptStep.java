@@ -1,6 +1,5 @@
 package org.jenkinsci.plugins.script_executor.pipeline;
 
-
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Util;
@@ -8,18 +7,15 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import org.jenkinsci.plugins.script_executor.ScriptSource;
 import org.jenkinsci.plugins.script_executor.UniversalScript;
-import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
-import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;
-import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
+import org.jenkinsci.plugins.workflow.steps.*;
 import org.kohsuke.stapler.DataBoundSetter;
 
 import javax.annotation.Nonnull;
-import javax.inject.Inject;
 
 /**
  * Base class for pipeline steps
  */
-public abstract class BaseScriptStep extends AbstractStepImpl {
+public abstract class BaseScriptStep extends Step {
     /**
      * Name of runtime
      */
@@ -70,6 +66,10 @@ public abstract class BaseScriptStep extends AbstractStepImpl {
         this.scriptParameters = Util.fixNull(scriptParameters);
     }
 
+    @Override
+    public StepExecution start(StepContext context) throws Exception {
+        return new Execution(this, context);
+    }
 
     public static final class Execution extends AbstractSynchronousNonBlockingStepExecution<Void> {
         private final transient BaseScriptStep step;
@@ -83,8 +83,8 @@ public abstract class BaseScriptStep extends AbstractStepImpl {
         @StepContextParameter
         private transient Launcher launcher;
 
-        @Inject
-        public Execution(BaseScriptStep step) {
+        public Execution(BaseScriptStep step, StepContext context) {
+            super(context);
             this.step = step;
         }
 
