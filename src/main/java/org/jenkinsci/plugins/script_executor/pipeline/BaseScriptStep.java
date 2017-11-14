@@ -3,6 +3,7 @@ package org.jenkinsci.plugins.script_executor.pipeline;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Util;
+import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
 import org.jenkinsci.plugins.script_executor.ScriptSource;
@@ -32,6 +33,11 @@ public abstract class BaseScriptStep extends Step {
      * List of script parameters
      */
     private String scriptParameters = "";
+
+    /**
+     * True if failed execution should not cause an error
+     */
+    private boolean ignoreFailedExecution = false;
 
     BaseScriptStep(@Nonnull String runtimeName, @Nonnull ScriptSource scriptSource) {
         this.runtimeName = runtimeName;
@@ -66,22 +72,22 @@ public abstract class BaseScriptStep extends Step {
         this.scriptParameters = Util.fixNull(scriptParameters);
     }
 
+    public boolean isIgnoreFailedExecution() {
+        return ignoreFailedExecution;
+    }
+
+    @DataBoundSetter
+    public void setIgnoreFailedExecution(boolean ignoreFailedExecution) {
+        this.ignoreFailedExecution = ignoreFailedExecution;
+    }
+
     @Override
     public StepExecution start(StepContext context) throws Exception {
         return new Execution(this, context);
     }
 
-    public static final class Execution extends AbstractSynchronousNonBlockingStepExecution<Void> {
+    public static final class Execution extends AbstractSynchronousNonBlockingStepExecution<Boolean> {
         private final transient BaseScriptStep step;
-
-        @StepContextParameter
-        private transient Run<?, ?> run;
-        @StepContextParameter
-        private transient TaskListener listener;
-        @StepContextParameter
-        private transient FilePath workspace;
-        @StepContextParameter
-        private transient Launcher launcher;
 
         public Execution(BaseScriptStep step, StepContext context) {
             super(context);
@@ -89,20 +95,34 @@ public abstract class BaseScriptStep extends Step {
         }
 
         @Override
-        protected Void run() throws Exception {
+        protected Boolean run() throws Exception {
+            StepContext context = getContext();
+
             // get universal script instance
             UniversalScript script = new UniversalScript(step.getScriptSource(), step.getRuntimeName());
 
             // set context
-            script.setCustomContext(getContext());
+            script.setCustomContext(context);
 
             // set parameters
             script.setRuntimeParameters(step.getRuntimeParameters());
             script.setScriptParameters(step.getScriptParameters());
 
+            Run<?, ?> run = context.get(Run.class);
+            TaskListener listener = context.get(TaskListener.class);
             // run script
-            script.perform(run, workspace, launcher, listener);
-            return null;
+            script.perform(
+                    run,
+                    context.get(FilePath.class),
+                    context.get(Launcher.class),
+                    listener);
+
+            if (!step.isIgnoreFailedExecution() &&
+                run.getResult() == Result.FAILURE) {
+                // TODO find a way to mark step as failed
+                //throw new AbortException("Execution failed");
+            }
+            return run.getResult() != Result.FAILURE;
         }
     }
 }
