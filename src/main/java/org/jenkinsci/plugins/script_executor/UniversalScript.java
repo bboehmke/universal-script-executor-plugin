@@ -85,8 +85,7 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
 
         // check if script is missing
         if (scriptSource == null) {
-            listener.fatalError("There is no script configured for this builder");
-            return;
+            throw new ExecutionFailureException("There is no script configured for this builder");
         }
 
         // try to get script
@@ -96,8 +95,7 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
         } catch (IOException e) {
             Util.displayIOException(e, listener);
             e.printStackTrace(listener.fatalError("Unable to produce a script file"));
-            build.setResult(Result.FAILURE);
-            return;
+            throw new ExecutionFailureException("Unable to produce a script file");
         }
 
         try {
@@ -106,8 +104,7 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
 
             // check if command creation has failed
             if (cmd == null) {
-                build.setResult(Result.FAILURE);
-                return;
+                throw new ExecutionFailureException("Empty command");
             }
 
             try {
@@ -149,14 +146,18 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
                 procStarter.pwd(workspace);
 
                 // execute the script
-                if (procStarter.join() != 0) {
-                    build.setResult(Result.FAILURE);
+                int exitCode = procStarter.join();
+                if (exitCode != 0) {
+                    throw new ExecutionFailureException("Execution failed", exitCode);
                 }
+
+            } catch (ExecutionFailureException e) {
+                throw e; // do not handle ExecutionFailureException
 
             } catch (IOException e) {
                 Util.displayIOException(e,listener);
                 e.printStackTrace( listener.fatalError("command execution failed") );
-                build.setResult(Result.FAILURE);
+                throw new ExecutionFailureException("Command execution failed");
             }
 
         } finally {

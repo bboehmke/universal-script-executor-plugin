@@ -3,9 +3,9 @@ package org.jenkinsci.plugins.script_executor.pipeline;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.Util;
-import hudson.model.Result;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import org.jenkinsci.plugins.script_executor.ExecutionFailureException;
 import org.jenkinsci.plugins.script_executor.ScriptSource;
 import org.jenkinsci.plugins.script_executor.UniversalScript;
 import org.jenkinsci.plugins.workflow.steps.*;
@@ -86,7 +86,7 @@ public abstract class BaseScriptStep extends Step {
         return new Execution(this, context);
     }
 
-    public static final class Execution extends AbstractSynchronousNonBlockingStepExecution<Boolean> {
+    public static final class Execution extends AbstractSynchronousNonBlockingStepExecution<Integer> {
         private final transient BaseScriptStep step;
 
         public Execution(BaseScriptStep step, StepContext context) {
@@ -95,7 +95,7 @@ public abstract class BaseScriptStep extends Step {
         }
 
         @Override
-        protected Boolean run() throws Exception {
+        protected Integer run() throws Exception {
             StepContext context = getContext();
 
             // get universal script instance
@@ -110,19 +110,25 @@ public abstract class BaseScriptStep extends Step {
 
             Run<?, ?> run = context.get(Run.class);
             TaskListener listener = context.get(TaskListener.class);
-            // run script
-            script.perform(
-                    run,
-                    context.get(FilePath.class),
-                    context.get(Launcher.class),
-                    listener);
 
-            if (!step.isIgnoreFailedExecution() &&
-                run.getResult() == Result.FAILURE) {
-                // TODO find a way to mark step as failed
-                //throw new AbortException("Execution failed");
+            try {
+                // run script
+                script.perform(
+                        run,
+                        context.get(FilePath.class),
+                        context.get(Launcher.class),
+                        listener);
+
+            } catch (ExecutionFailureException e) {
+                // handle failure result
+                if (step.isIgnoreFailedExecution()) {
+                    listener.error("[UNIVERSAL SCRIPT EXECUTOR] " + e.getMessage());
+                    return e.getExitCode();
+                } else {
+                    throw e;
+                }
             }
-            return run.getResult() != Result.FAILURE;
+            return 0;
         }
     }
 }
