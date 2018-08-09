@@ -266,6 +266,16 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
      * @return RuntimeInstallation
      */
     protected RuntimeInstallation getRuntime() throws IOException, InterruptedException {
+        return getRuntime(runtimeName, customContext);
+    }
+
+    /**
+     * Get the runtime installation of this instance
+     * @param runtimeName Name of runtime
+     * @param stepContext Step context (pipeline)
+     * @return RuntimeInstallation
+     */
+    public static RuntimeInstallation getRuntime(String runtimeName, StepContext stepContext) throws IOException, InterruptedException {
         for (ToolDescriptor<?> desc : ToolInstallation.all()) {
             for (ToolInstallation inst : desc.getInstallations()) {
                 // skip other installations
@@ -276,9 +286,9 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
                 if (inst.getName().equals(runtimeName)) {
 
                     // handle special context (pipeline step)
-                    if (customContext != null) {
-                        inst = (ToolInstallation) ((NodeSpecific<?>) inst).forNode(customContext.get(Node.class), customContext.get(TaskListener.class));
-                        inst = (ToolInstallation) ((EnvironmentSpecific<?>) inst).forEnvironment(customContext.get(EnvVars.class));
+                    if (stepContext != null) {
+                        inst = (ToolInstallation) ((NodeSpecific<?>) inst).forNode(stepContext.get(Node.class), stepContext.get(TaskListener.class));
+                        inst = (ToolInstallation) ((EnvironmentSpecific<?>) inst).forEnvironment(stepContext.get(EnvVars.class));
                     }
 
                     return (RuntimeInstallation)inst;
@@ -374,7 +384,7 @@ public class UniversalScript extends Builder implements SimpleBuildStep {
      * @param line Line with parameters
      * @return Array with parameters
      */
-    private String[] parseParams(String line) {
+    public static String[] parseParams(String line) {
         // JENKINS-24870 CommandLine.getExecutable tries to fix file separators,
         // so if the first param contains slashes, it can cause problems
         // Adding some placeholder instead of executable
